@@ -3,214 +3,492 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Spatialgineers | SGX Story Visualizer</title>
+    <title>SGX Story Visualizer</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
-        body { background-color: #050505; color: #fff; font-family: -apple-system, BlinkMacSystemFont, sans-serif; overflow: hidden; margin: 0; touch-action: manipulation; }
-        /* SGX Brand Colors */
-        input[type=range] { accent-color: #FDCC0D; width: 100%; height: 4px; cursor: pointer; background: #333; border-radius: 2px; outline: none; -webkit-appearance: none; margin-top: 6px; }
-        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #FDCC0D; cursor: pointer; border: 2px solid #000; }
-        input[type=color] { border: none; width: 24px; height: 24px; border-radius: 4px; cursor: pointer; padding: 0; background: transparent; }
-        .canvas-container { background-image: radial-gradient(#262626 1px, transparent 1px); background-size: 16px 16px; }
-        .control-group { background: #111; padding: 12px; border-radius: 6px; border: 1px solid #262626; margin-bottom: 8px; }
+        body { background-color: #010409; color: #fff; font-family: -apple-system, BlinkMacSystemFont, sans-serif; overflow: hidden; margin: 0; touch-action: manipulation; }
         
+        /* SGX Tactical UI Styling */
+        .sgx-panel { background: rgba(2, 8, 15, 0.95); border-right: 1px solid #1f2937; border-left: 4px solid #FDCC0D; }
+        .control-group { background: #0a0e14; padding: 12px; border-radius: 8px; border: 1px solid #1f2937; margin-bottom: 8px; }
+        
+        /* Tactical Sliders */
+        input[type=range] { -webkit-appearance: none; width: 100%; height: 6px; background: #1f2937; border-radius: 3px; outline: none; margin-top: 4px; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #FDCC0D; cursor: pointer; border: 2px solid #010409; box-shadow: 0 0 8px rgba(253,204,13,0.5); }
+        input[type=color] { border: none; width: 28px; height: 28px; border-radius: 6px; cursor: pointer; padding: 0; background: transparent; }
+        
+        /* FX Core Buttons */
+        .effect-btn { min-width: 68px; height: 42px; flex-shrink: 0; background: #0f172a; border: 1px solid #334155; font-size: 9px; font-weight: 800; text-align: center; border-radius: 6px; cursor: pointer; transition: all 0.2s; color: #94a3b8; display: flex; align-items: center; justify-content: center; line-height: 1.1; letter-spacing: 0.05em; }
+        .effect-btn.active { background: #FDCC0D; color: #000; border-color: #FDCC0D; box-shadow: 0 0 15px rgba(253,204,13,0.4); }
+
         /* Stealth Scrollbar */
-        .scrollable-area::-webkit-scrollbar { width: 4px; }
-        .scrollable-area::-webkit-scrollbar-thumb { background-color: #444; border-radius: 4px; }
+        .scrollable-area::-webkit-scrollbar { width: 4px; height: 4px; }
+        .scrollable-area::-webkit-scrollbar-thumb { background-color: #334155; border-radius: 4px; }
+        
+        /* Canvas */
+        #webgl-container { background-image: radial-gradient(#1e293b 1px, transparent 1px); background-size: 20px 20px; }
+        canvas { display: block; max-width: 100%; max-height: 100%; object-fit: contain; box-shadow: 0 0 50px rgba(253,204,13,0.05); border: 1px solid #1e293b; border-radius: 4px; }
     </style>
 </head>
 <body class="flex flex-col md:flex-row h-screen w-full">
 
-    <!-- RENDER ENGINE / CANVAS AREA (Arriba en móvil, Derecha en Desktop) -->
-    <main class="w-full md:flex-1 h-[45vh] md:h-screen flex flex-col items-center justify-center p-2 md:p-6 canvas-container relative order-1 md:order-2 z-0 border-b md:border-b-0 border-[#262626]">
-        <!-- Se eliminó crossorigin="anonymous" para evitar bloqueos CORS en archivos locales -->
-        <video id="hidden-video" class="hidden" loop muted playsinline></video>
-        <canvas id="render-canvas" class="max-w-full max-h-full object-contain shadow-[0_0_40px_rgba(253,204,13,0.05)] bg-black border border-[#262626] rounded-sm"></canvas>
-    </main>
-
-    <!-- CONTROL CENTER (Abajo en móvil, Izquierda en Desktop) -->
-    <!-- Flex estricto: Todo el sidebar es flex-col, ocupando el alto designado -->
-    <aside class="w-full md:w-[320px] h-[55vh] md:h-screen bg-[#0a0a0a] border-r border-[#262626] flex flex-col order-2 md:order-1 relative z-10 shadow-2xl">
+    <!-- CONTROL CENTER (Left/Bottom) -->
+    <aside class="w-full md:w-[360px] h-[55vh] md:h-screen sgx-panel flex flex-col order-2 md:order-1 relative z-10 shadow-2xl">
         
-        <!-- Header (shrink-0 asegura que nunca se comprima) -->
-        <div class="px-4 py-3 bg-[#0a0a0a] border-b border-[#262626] flex justify-between items-center shrink-0">
+        <!-- Header -->
+        <div class="px-5 py-4 border-b border-gray-800 flex justify-between items-center shrink-0 bg-[#02080f]">
             <div>
-                <h1 class="text-sm md:text-base font-bold tracking-tight text-[#FDCC0D] italic">SGX VISUALIZER</h1>
-                <p class="text-[8px] text-gray-500 font-mono uppercase tracking-widest leading-none">Narrative Engine 2.1</p>
+                <h1 class="text-base font-black tracking-tight text-[#FDCC0D] italic uppercase">SGX Story</h1>
+                <p class="text-[9px] text-gray-400 font-mono uppercase tracking-widest mt-0.5">Ubershader Engine</p>
             </div>
-            <label class="bg-[#32527B] hover:bg-[#254063] text-white text-[9px] font-bold py-1.5 px-3 rounded cursor-pointer transition-colors uppercase tracking-wider">
-                Load
+            <label class="bg-[#32527B] hover:bg-blue-600 text-white text-[9px] font-bold py-2 px-4 rounded cursor-pointer transition-colors uppercase tracking-widest shadow-lg">
+                Ingest Media
                 <input type="file" id="video-upload" accept="video/*" class="hidden">
             </label>
         </div>
 
-        <!-- Scrollable Controls (flex-1 absorbe el espacio restante, overflow-y-auto maneja el scroll) -->
-        <div class="p-4 flex-1 overflow-y-auto scrollable-area flex flex-col gap-2 pb-6">
+        <!-- Scrollable Dashboard -->
+        <div class="p-4 flex-1 overflow-y-auto scrollable-area flex flex-col gap-3">
             
-            <!-- Base Color -->
-            <div class="control-group border-[#FDCC0D]/20">
-                <h2 class="text-[9px] font-bold text-[#888888] uppercase tracking-widest border-b border-[#262626] pb-1 mb-3">Color Base (GPU Buffer)</h2>
+            <!-- 1. VISUALIZER CORE MODES -->
+            <div class="control-group border-[#FDCC0D]/30">
+                <h2 class="text-[10px] font-bold text-gray-500 uppercase tracking-widest border-b border-gray-800 pb-1.5 mb-2.5 flex justify-between"><span>Core Nodes</span><span class="text-[#FDCC0D]">GLSL</span></h2>
+                <div class="flex gap-2 overflow-x-auto pb-2 scrollable-area" id="effect-list">
+                    <div class="effect-btn active" data-mode="0">SPIDER<br>VERSE</div>
+                    <div class="effect-btn" data-mode="1">DATA<br>MOSH</div>
+                    <div class="effect-btn" data-mode="2">FLUID<br>LIQUIFY</div>
+                    <div class="effect-btn" data-mode="3">SOBEL<br>NEON</div>
+                    <div class="effect-btn" data-mode="4">KINETIC<br>PULSE</div>
+                    <div class="effect-btn" data-mode="5">CRT<br>GHOST</div>
+                    <div class="effect-btn" data-mode="6">CHROMA<br>EXTREM</div>
+                    <div class="effect-btn" data-mode="7">DEPTH<br>MAP</div>
+                    <div class="effect-btn" data-mode="8">ASCII<br>VOID</div>
+                    <div class="effect-btn" data-mode="9">THERMAL<br>PRED</div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4 mt-2">
+                    <div>
+                        <div class="flex justify-between text-[10px] font-mono font-bold text-gray-300 mb-1"><label>Intensity</label><span id="val-int" class="text-[#FDCC0D]">0.50</span></div>
+                        <input type="range" id="sl-int" min="0" max="1" step="0.01" value="0.5">
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-[10px] font-mono font-bold text-gray-300 mb-1"><label>Scale</label><span id="val-scale" class="text-[#FDCC0D]">1.00</span></div>
+                        <input type="range" id="sl-scale" min="0.1" max="5" step="0.1" value="1.0">
+                    </div>
+                </div>
+                <div class="flex items-center gap-3 mt-3 pt-2 border-t border-gray-800">
+                    <input type="color" id="in-color" value="#fdcc0d">
+                    <div class="flex-1">
+                        <label class="block text-[10px] font-mono font-bold text-gray-300">Node Emission Color</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. BASE COLOR GRADING -->
+            <div class="control-group">
+                <h2 class="text-[10px] font-bold text-gray-500 uppercase tracking-widest border-b border-gray-800 pb-1.5 mb-2.5">Color Grading</h2>
                 <div class="grid grid-cols-2 gap-x-4 gap-y-3">
                     <div>
-                        <label class="flex justify-between text-[10px] font-mono text-gray-300"><span>Brt</span> <span id="val-bright">100%</span></label>
-                        <input type="range" id="fx-bright" min="10" max="200" value="100">
+                        <label class="flex justify-between text-[9px] font-mono text-gray-400"><span>Brt</span> <span id="val-bright">100%</span></label>
+                        <input type="range" id="fx-bright" min="0" max="200" value="100">
                     </div>
                     <div>
-                        <label class="flex justify-between text-[10px] font-mono text-gray-300"><span>Con</span> <span id="val-cont">100%</span></label>
-                        <input type="range" id="fx-cont" min="50" max="250" value="100">
+                        <label class="flex justify-between text-[9px] font-mono text-gray-400"><span>Con</span> <span id="val-cont">100%</span></label>
+                        <input type="range" id="fx-cont" min="0" max="200" value="100">
                     </div>
                     <div>
-                        <label class="flex justify-between text-[10px] font-mono text-gray-300"><span>Sat</span> <span id="val-sat">100%</span></label>
+                        <label class="flex justify-between text-[9px] font-mono text-gray-400"><span>Sat</span> <span id="val-sat">100%</span></label>
                         <input type="range" id="fx-sat" min="0" max="300" value="100">
                     </div>
                     <div>
-                        <label class="flex justify-between text-[10px] font-mono text-gray-300"><span>Hue</span> <span id="val-hue">0°</span></label>
+                        <label class="flex justify-between text-[9px] font-mono text-gray-400"><span>Hue</span> <span id="val-hue">0°</span></label>
                         <input type="range" id="fx-hue" min="-180" max="180" value="0">
                     </div>
                 </div>
-            </div>
-
-            <!-- FX -->
-            <div class="control-group border-red-500/10">
-                <h2 class="text-[9px] font-bold text-[#888888] uppercase tracking-widest border-b border-[#262626] pb-1 mb-3">Psychological FX</h2>
-                
-                <div class="flex items-center gap-3 mb-4">
+                <div class="flex items-center gap-3 mt-3 pt-3 border-t border-gray-800">
                     <input type="color" id="fx-tint-color" value="#ff0000">
                     <div class="flex-1">
-                        <label class="flex justify-between text-[10px] font-mono text-gray-300"><span>Mood Tint</span> <span id="val-tint">0%</span></label>
+                        <label class="flex justify-between text-[9px] font-mono text-gray-400 mb-1"><span>Mood Tint (Multiply)</span> <span id="val-tint">0%</span></label>
                         <input type="range" id="fx-tint-power" min="0" max="100" value="0">
                     </div>
                 </div>
+            </div>
 
-                <div class="space-y-3">
+            <!-- 3. DEGRADATION & FX -->
+            <div class="control-group border-red-900/30">
+                <h2 class="text-[10px] font-bold text-gray-500 uppercase tracking-widest border-b border-gray-800 pb-1.5 mb-2.5">Signal FX</h2>
+                <div class="grid grid-cols-2 gap-x-4 gap-y-3">
                     <div>
-                        <label class="flex justify-between text-[10px] font-mono text-gray-300"><span>Lens Blur</span> <span id="val-blur">0px</span></label>
-                        <input type="range" id="fx-blur" min="0" max="20" value="0" step="0.5">
+                        <label class="flex justify-between text-[9px] font-mono text-gray-400"><span>Lens Blur</span> <span id="val-blur">0%</span></label>
+                        <input type="range" id="fx-blur" min="0" max="100" value="0">
                     </div>
                     <div>
-                        <label class="flex justify-between text-[10px] font-mono text-gray-300"><span>Vignette</span> <span id="val-vig">0%</span></label>
+                        <label class="flex justify-between text-[9px] font-mono text-gray-400"><span>Vignette</span> <span id="val-vig">0%</span></label>
                         <input type="range" id="fx-vig" min="0" max="100" value="0">
                     </div>
                     <div>
-                        <label class="flex justify-between text-[10px] font-mono text-gray-300"><span>Film Grain</span> <span id="val-grain">0%</span></label>
+                        <label class="flex justify-between text-[9px] font-mono text-gray-400"><span>Film Grain</span> <span id="val-grain">0%</span></label>
                         <input type="range" id="fx-grain" min="0" max="100" value="0">
                     </div>
                     <div>
-                        <label class="flex justify-between text-[10px] font-mono text-gray-300"><span>Invert</span> <span id="val-invert">0%</span></label>
+                        <label class="flex justify-between text-[9px] font-mono text-gray-400"><span>Invert</span> <span id="val-invert">0%</span></label>
                         <input type="range" id="fx-invert" min="0" max="100" value="0">
                     </div>
-                </div>
-            </div>
-
-            <!-- Degradation -->
-            <div class="control-group">
-                <h2 class="text-[9px] font-bold text-[#888888] uppercase tracking-widest border-b border-[#262626] pb-1 mb-3">Degradation</h2>
-                <div class="space-y-3">
                     <div>
-                        <label class="flex justify-between text-[10px] font-mono text-gray-300"><span>Glitch Tear</span> <span id="val-glitch">0%</span></label>
+                        <label class="flex justify-between text-[9px] font-mono text-gray-400"><span>Glitch Tear</span> <span id="val-glitch">0%</span></label>
                         <input type="range" id="fx-glitch" min="0" max="100" value="0">
                     </div>
                     <div>
-                        <label class="flex justify-between text-[10px] font-mono text-gray-300"><span>CRT Scanlines</span> <span id="val-crt">0%</span></label>
+                        <label class="flex justify-between text-[9px] font-mono text-gray-400"><span>CRT Lines</span> <span id="val-crt">0%</span></label>
                         <input type="range" id="fx-crt" min="0" max="100" value="0">
                     </div>
                 </div>
             </div>
+
+            <!-- 4. TIMING -->
+            <div class="control-group mb-4">
+                <div class="flex justify-between text-[10px] font-mono font-bold text-gray-300 mb-1"><label>Stop-Motion Framerate</label><span id="val-fps" class="text-[#FDCC0D]">30 FPS</span></div>
+                <input type="range" id="sl-fps" min="2" max="60" step="1" value="30">
+            </div>
+
         </div>
 
-        <!-- Render Footer (shrink-0 asegura que siempre esté fijo abajo sin pisar el contenido) -->
-        <div class="px-4 py-3 bg-[#0a0a0a] border-t border-[#262626] shrink-0">
-            <button id="render-btn" class="w-full bg-[#FDCC0D] text-black text-xs font-bold py-2.5 rounded hover:bg-yellow-400 transition-colors disabled:opacity-50 disabled:bg-gray-700 disabled:text-gray-400 uppercase tracking-wider shadow-[0_0_15px_rgba(253,204,13,0.2)]" disabled>
-                Record Output
+        <!-- Render Footer -->
+        <div class="p-4 bg-[#02080f] border-t border-gray-800 shrink-0">
+            <button id="render-btn" class="w-full bg-[#FDCC0D] text-black text-[11px] font-black py-3.5 rounded hover:bg-yellow-400 transition-colors disabled:opacity-50 disabled:bg-gray-800 disabled:text-gray-500 uppercase tracking-widest shadow-[0_0_20px_rgba(253,204,13,0.15)]" disabled>
+                Start Recording
             </button>
-            <p id="render-status" class="text-[8px] text-center text-gray-500 mt-1.5 font-mono uppercase tracking-widest">Awaiting Media...</p>
+            <p id="render-status" class="text-[8px] text-center text-gray-500 mt-2 font-mono uppercase tracking-widest">Waiting for source feed...</p>
         </div>
     </aside>
 
+    <!-- WEBGL RENDER AREA (Right/Top) -->
+    <main id="webgl-container" class="w-full md:flex-1 h-[45vh] md:h-screen flex items-center justify-center p-2 md:p-8 relative order-1 md:order-2 z-0">
+        <video id="hidden-video" class="hidden" loop muted playsinline></video>
+        <canvas id="texture-canvas" class="hidden"></canvas>
+    </main>
+
     <script>
+        // --- 1. CORE DOM ELEMENTS ---
         const videoInput = document.getElementById('video-upload');
         const video = document.getElementById('hidden-video');
-        const canvas = document.getElementById('render-canvas');
-        const ctx = canvas.getContext('2d'); 
+        const texCanvas = document.getElementById('texture-canvas');
+        const texCtx = texCanvas.getContext('2d', { willReadFrequently: true });
+        const container = document.getElementById('webgl-container');
         const renderBtn = document.getElementById('render-btn');
         const renderStatus = document.getElementById('render-status');
 
-        // UI Binding Array
-        const inputs = {
-            bright: document.getElementById('fx-bright'),
-            cont: document.getElementById('fx-cont'),
-            sat: document.getElementById('fx-sat'),
-            hue: document.getElementById('fx-hue'),
-            tintColor: document.getElementById('fx-tint-color'),
-            tint: document.getElementById('fx-tint-power'),
-            blur: document.getElementById('fx-blur'),
-            vig: document.getElementById('fx-vig'),
-            grain: document.getElementById('fx-grain'),
-            invert: document.getElementById('fx-invert'),
-            glitch: document.getElementById('fx-glitch'),
-            crt: document.getElementById('fx-crt')
+        // --- 2. UNIFORM STATE & MAPPING ---
+        let vfxState = {
+            mode: 0, fps: 30, intensity: 0.5, scale: 1.0, color: '#fdcc0d',
+            bright: 1.0, cont: 1.0, sat: 1.0, hue: 0.0,
+            invert: 0.0, vig: 0.0, grain: 0.0, crt: 0.0, glitch: 0.0, blur: 0.0,
+            tintPower: 0.0, tintColor: '#ff0000'
         };
 
-        Object.keys(inputs).forEach(key => {
-            if (inputs[key] && inputs[key].type === 'range') {
-                inputs[key].addEventListener('input', (e) => {
-                    let unit = key === 'hue' ? '°' : key === 'blur' ? 'px' : '%';
-                    const labelSpan = document.getElementById(`val-${key}`);
-                    if(labelSpan) labelSpan.textContent = e.target.value + unit;
-                });
-            }
-        });
+        const uiMap = {
+            'sl-int': { key: 'intensity', unit: '', mult: 1, type: 'float' },
+            'sl-scale': { key: 'scale', unit: '', mult: 1, type: 'float' },
+            'in-color': { key: 'color', type: 'color' },
+            'sl-fps': { key: 'fps', unit: ' FPS', mult: 1, type: 'int' },
+            'fx-bright': { key: 'bright', unit: '%', mult: 0.01, type: 'float' },
+            'fx-cont': { key: 'cont', unit: '%', mult: 0.01, type: 'float' },
+            'fx-sat': { key: 'sat', unit: '%', mult: 0.01, type: 'float' },
+            'fx-hue': { key: 'hue', unit: '°', mult: 1, type: 'float' }, // Handled in shader as radians
+            'fx-invert': { key: 'invert', unit: '%', mult: 0.01, type: 'float' },
+            'fx-vig': { key: 'vig', unit: '%', mult: 0.01, type: 'float' },
+            'fx-grain': { key: 'grain', unit: '%', mult: 0.01, type: 'float' },
+            'fx-crt': { key: 'crt', unit: '%', mult: 0.01, type: 'float' },
+            'fx-glitch': { key: 'glitch', unit: '%', mult: 0.01, type: 'float' },
+            'fx-blur': { key: 'blur', unit: '%', mult: 0.01, type: 'float' },
+            'fx-tint-power': { key: 'tintPower', unit: '%', mult: 0.01, type: 'float' },
+            'fx-tint-color': { key: 'tintColor', type: 'color' }
+        };
 
         function hexToRgb(hex) {
-            let r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
-            return `${r},${g},${b}`;
+            let result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? { r: parseInt(result[1], 16)/255, g: parseInt(result[2], 16)/255, b: parseInt(result[3], 16)/255 } : { r:1, g:1, b:1 };
         }
 
-        // --- ARQUITECTURA DE BUFFERS (FIX PARA FILTROS EN VIDEO) ---
-        // 1. Frame Buffer (El bypass para el bug de hardware)
-        const bufferCanvas = document.createElement('canvas');
-        const bufferCtx = bufferCanvas.getContext('2d');
+        // --- 3. THREE.JS & THE MASTER UBERSHADER ---
+        const scene = new THREE.Scene();
+        const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+        const renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true });
+        container.appendChild(renderer.domElement);
 
-        // 2. Offscreen FX Canvases
-        const noiseCanvas = document.createElement('canvas');
-        function generateNoisePattern(w, h) {
-            noiseCanvas.width = w;
-            noiseCanvas.height = h;
-            const noiseCtx = noiseCanvas.getContext('2d');
-            const imgData = noiseCtx.createImageData(w, h);
-            const buffer = new Uint32Array(imgData.data.buffer);
-            for (let i = 0; i < buffer.length; i++) {
-                const v = Math.random() * 255;
-                buffer[i] = (255 << 24) | (v << 16) | (v << 8) | v;
+        const videoTexture = new THREE.CanvasTexture(texCanvas);
+        videoTexture.minFilter = THREE.LinearFilter;
+        videoTexture.magFilter = THREE.LinearFilter;
+
+        const vertexShader = `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+
+        // EL MOTOR COMPLETO: GLSL para Nodos Sintéticos + Color + Efectos. Todo procesado en un solo Frame.
+        const fragmentShader = `
+            uniform sampler2D tDiffuse;
+            uniform int u_mode;
+            uniform float u_intensity;
+            uniform float u_scale;
+            uniform vec3 u_color;
+            uniform float u_time;
+            
+            // Base Color & Overlays
+            uniform float u_bright;
+            uniform float u_cont;
+            uniform float u_sat;
+            uniform float u_hue;
+            uniform float u_invert;
+            uniform float u_vig;
+            uniform float u_grain;
+            uniform float u_crt;
+            uniform float u_glitch;
+            uniform float u_blur;
+            uniform float u_tintPower;
+            uniform vec3 u_tintColor;
+
+            varying vec2 vUv;
+
+            float getLuma(vec3 color) { return dot(color, vec3(0.299, 0.587, 0.114)); }
+            
+            vec3 hueShift(vec3 color, float hue) {
+                const vec3 k = vec3(0.57735, 0.57735, 0.57735);
+                float cosAngle = cos(hue);
+                return vec3(color * cosAngle + cross(k, color) * sin(hue) + k * dot(k, color) * (1.0 - cosAngle));
             }
-            noiseCtx.putImageData(imgData, 0, 0);
-        }
 
-        const crtCanvas = document.createElement('canvas');
-        function generateCRT(w, h) {
-            crtCanvas.width = w;
-            crtCanvas.height = h;
-            const cCtx = crtCanvas.getContext('2d');
-            cCtx.fillStyle = 'rgba(0, 0, 0, 1)'; 
-            for (let i = 0; i < h; i += 4) cCtx.fillRect(0, i, w, 2);
-        }
+            void main() {
+                vec2 uv = vUv;
 
-        const vigCanvas = document.createElement('canvas');
-        function generateVignette(w, h) {
-            vigCanvas.width = w;
-            vigCanvas.height = h;
-            const vCtx = vigCanvas.getContext('2d');
-            let gradient = vCtx.createRadialGradient(w/2, h/2, 0, w/2, h/2, w * 0.7);
-            gradient.addColorStop(0, 'rgba(0,0,0,0)');
-            gradient.addColorStop(1, 'rgba(0,0,0,1)');
-            vCtx.fillStyle = gradient;
-            vCtx.fillRect(0, 0, w, h);
-        }
+                // --- 1. SIGNAL GLITCH (Modifies UV before sampling) ---
+                if(u_glitch > 0.0) {
+                    float noiseY = fract(sin(dot(vec2(u_time * 0.1, uv.y), vec2(12.9898, 78.233))) * 43758.5453);
+                    if(noiseY < u_glitch * 0.15) {
+                        uv.x += (fract(sin(u_time) * 43758.5453) - 0.5) * u_glitch * 0.2;
+                    }
+                }
 
+                // --- 2. LENS BLUR (Fast Multi-tap) ---
+                vec4 texColor = vec4(0.0);
+                if(u_blur > 0.0) {
+                    float b = u_blur * 0.01;
+                    texColor += texture2D(tDiffuse, uv + vec2(-b, -b));
+                    texColor += texture2D(tDiffuse, uv + vec2( b, -b));
+                    texColor += texture2D(tDiffuse, uv + vec2(-b,  b));
+                    texColor += texture2D(tDiffuse, uv + vec2( b,  b));
+                    texColor += texture2D(tDiffuse, uv) * 4.0;
+                    texColor /= 8.0;
+                } else {
+                    texColor = texture2D(tDiffuse, uv);
+                }
+
+                vec3 finalColor = texColor.rgb;
+                float luma = getLuma(finalColor);
+
+                // --- 3. VISUALIZER CORE MODES (0-9) ---
+                float dynInt = u_intensity; 
+                float dynScale = u_scale;
+
+                if (u_mode == 0) { // SPIDER VERSE
+                    float offset = dynInt * 0.05;
+                    float r = texture2D(tDiffuse, vec2(uv.x + offset, uv.y)).r;
+                    float b = texture2D(tDiffuse, vec2(uv.x - offset, uv.y)).b;
+                    vec3 glitch = vec3(r, texColor.g, b);
+                    vec2 px = gl_FragCoord.xy / (dynScale * 5.0); 
+                    float pattern = sin(px.x) * sin(px.y);
+                    float comic = step(pattern, getLuma(glitch) * 1.5 - 0.5);
+                    vec3 tintedGlitch = mix(glitch, glitch * u_color * 1.5, 0.5);
+                    finalColor = mix(vec3(0.02, 0.0, 0.05), tintedGlitch, comic + 0.2);
+                }
+                else if (u_mode == 1) { // DATA MOSH
+                    if (luma > 0.4 && luma < 0.8) {
+                        uv.y += dynInt * 0.2 * sin(uv.x * (50.0 * dynScale) + u_time);
+                        finalColor = texture2D(tDiffuse, fract(uv)).rgb * u_color;
+                    }
+                }
+                else if (u_mode == 2) { // FLUID LIQUIFY
+                    uv.x += sin(uv.y * (10.0 * dynScale) + u_time * 2.0) * 0.05 * dynInt;
+                    uv.y += cos(uv.x * (10.0 * dynScale) + u_time * 2.0) * 0.05 * dynInt;
+                    finalColor = texture2D(tDiffuse, fract(uv)).rgb;
+                    finalColor = mix(finalColor, finalColor * u_color, dynInt);
+                }
+                else if (u_mode == 3) { // SOBEL NEON
+                    vec2 texel = vec2(1.0 / 1280.0, 1.0 / 720.0) * (dynInt * 5.0 + 1.0);
+                    float s00 = getLuma(texture2D(tDiffuse, uv + texel * vec2(-1, -1)).rgb);
+                    float s22 = getLuma(texture2D(tDiffuse, uv + texel * vec2(1, 1)).rgb);
+                    float s02 = getLuma(texture2D(tDiffuse, uv + texel * vec2(-1, 1)).rgb);
+                    float s20 = getLuma(texture2D(tDiffuse, uv + texel * vec2(1, -1)).rgb);
+                    float edge = abs(s00 - s22) + abs(s02 - s20);
+                    finalColor = mix(vec3(0.0), u_color * (dynScale * 2.0), edge * 5.0); 
+                }
+                else if (u_mode == 4) { // KINETIC PULSE
+                    vec2 center = vec2(0.5);
+                    float dist = distance(uv, center);
+                    float pulse = sin(dist * (20.0 * dynScale) - u_time * 5.0) * dynInt * 0.1;
+                    finalColor = texture2D(tDiffuse, uv + (uv - center) * pulse).rgb;
+                    finalColor *= mix(vec3(1.0), u_color, abs(pulse) * 10.0);
+                }
+                else if (u_mode == 5) { // CRT GHOST
+                    float scanline = sin(uv.y * (800.0 * dynScale)) * 0.04;
+                    float r = texture2D(tDiffuse, uv + vec2(dynInt * 0.01, 0.0)).r;
+                    float b = texture2D(tDiffuse, uv - vec2(dynInt * 0.01, 0.0)).b;
+                    finalColor = vec3(r, texColor.g, b) - scanline;
+                    finalColor *= mix(vec3(1.0), u_color, 0.5);
+                }
+                else if (u_mode == 6) { // CHROMA EXTREM
+                    float amt = dynInt * 0.2;
+                    float r = texture2D(tDiffuse, vec2(uv.x + amt * dynScale, uv.y - amt)).r;
+                    float g = texture2D(tDiffuse, uv).g;
+                    float b = texture2D(tDiffuse, vec2(uv.x - amt * dynScale, uv.y + amt)).b;
+                    finalColor = vec3(r, g, b) * mix(vec3(1.0), u_color, 0.2);
+                }
+                else if (u_mode == 7) { // DEPTH MAP
+                    vec2 center = vec2(0.5);
+                    vec2 depthUv = center + (uv - center) * (1.0 - luma * dynInt * dynScale);
+                    finalColor = texture2D(tDiffuse, depthUv).rgb;
+                    finalColor = mix(finalColor, u_color * luma, dynInt);
+                }
+                else if (u_mode == 8) { // ASCII VOID
+                    float pixels = 100.0 / dynScale;
+                    vec2 pixelatedUv = floor(uv * pixels) / pixels;
+                    float pLuma = getLuma(texture2D(tDiffuse, pixelatedUv).rgb);
+                    if(pLuma < 0.2) finalColor = vec3(0.0);
+                    else if(pLuma < 0.5) finalColor = u_color * 0.4;
+                    else if(pLuma < 0.8) finalColor = u_color * 0.8;
+                    else finalColor = u_color * 1.5; 
+                }
+                else if (u_mode == 9) { // THERMAL PRED
+                    luma = fract(luma + dynInt * u_time * 0.5);
+                    vec3 cold = vec3(0.0, 0.0, 0.5);
+                    if (luma < 0.33) finalColor = mix(cold, u_color, luma * 3.0);
+                    else if (luma < 0.66) finalColor = mix(u_color, vec3(1.0, 1.0, 0.0), (luma - 0.33) * 3.0);
+                    else finalColor = mix(vec3(1.0, 1.0, 0.0), vec3(1.0), (luma - 0.66) * 3.0);
+                }
+
+                // --- 4. BASE COLOR CORRECTION ---
+                // Brightness & Contrast
+                finalColor = (finalColor - 0.5) * u_cont + 0.5 + (u_bright - 1.0);
+                // Saturation
+                float newLuma = getLuma(finalColor);
+                finalColor = mix(vec3(newLuma), finalColor, u_sat);
+                // Hue Shift (radians)
+                if(abs(u_hue) > 0.0) { finalColor = hueShift(finalColor, u_hue); }
+                // Invert
+                finalColor = mix(finalColor, 1.0 - finalColor, u_invert);
+
+                // --- 5. OVERLAYS & DEGRADATION ---
+                // Mood Tint (Multiply)
+                if(u_tintPower > 0.0) {
+                    finalColor = mix(finalColor, finalColor * u_tintColor, u_tintPower);
+                }
+                // Vignette
+                if(u_vig > 0.0) {
+                    float vig = smoothstep(1.5, 0.5 - u_vig * 0.8, length(vUv - 0.5));
+                    finalColor *= vig;
+                }
+                // Film Grain
+                if(u_grain > 0.0) {
+                    float noise = fract(sin(dot(uv, vec2(12.9898, 78.233)) + u_time) * 43758.5453);
+                    finalColor -= (noise - 0.5) * u_grain * 0.3;
+                }
+                // CRT Scanlines
+                if(u_crt > 0.0) {
+                    float scanline = sin(uv.y * 1000.0) * 0.05 * u_crt;
+                    finalColor -= scanline;
+                }
+
+                // Clamp to prevent blowout
+                gl_FragColor = vec4(clamp(finalColor, 0.0, 1.0), 1.0);
+            }
+        `;
+
+        const initColor = hexToRgb(vfxState.color);
+        const initTint = hexToRgb(vfxState.tintColor);
+
+        const shaderMat = new THREE.ShaderMaterial({
+            uniforms: {
+                tDiffuse: { value: videoTexture },
+                u_mode: { value: vfxState.mode },
+                u_intensity: { value: vfxState.intensity },
+                u_scale: { value: vfxState.scale },
+                u_color: { value: new THREE.Vector3(initColor.r, initColor.g, initColor.b) },
+                u_time: { value: 0.0 },
+                
+                u_bright: { value: vfxState.bright },
+                u_cont: { value: vfxState.cont },
+                u_sat: { value: vfxState.sat },
+                u_hue: { value: vfxState.hue },
+                u_invert: { value: vfxState.invert },
+                u_vig: { value: vfxState.vig },
+                u_grain: { value: vfxState.grain },
+                u_crt: { value: vfxState.crt },
+                u_glitch: { value: vfxState.glitch },
+                u_blur: { value: vfxState.blur },
+                u_tintPower: { value: vfxState.tintPower },
+                u_tintColor: { value: new THREE.Vector3(initTint.r, initTint.g, initTint.b) }
+            },
+            vertexShader: vertexShader,
+            fragmentShader: fragmentShader
+        });
+
+        scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), shaderMat));
+        const clock = new THREE.Clock();
+
+        // --- 4. EVENT LISTENERS & LOGIC BINDING ---
+        const syncUI = () => {
+            Object.keys(uiMap).forEach(id => {
+                const el = document.getElementById(id);
+                const map = uiMap[id];
+                if(el && map) {
+                    if(map.type === 'color') {
+                        vfxState[map.key] = el.value;
+                        const label = document.getElementById(`val-${map.key === 'color' ? 'c' : map.key.replace('Color', '')}`);
+                        if(label) label.innerText = el.value.toUpperCase();
+                    } else {
+                        let rawVal = map.type === 'int' ? parseInt(el.value) : parseFloat(el.value);
+                        vfxState[map.key] = rawVal * map.mult;
+                        const label = document.getElementById(`val-${map.key === 'intensity' ? 'int' : map.key === 'tintPower' ? 'tint' : map.key}`);
+                        if(label) label.innerText = el.value + map.unit;
+                    }
+                }
+            });
+
+            // Update Uniforms
+            shaderMat.uniforms.u_intensity.value = vfxState.intensity;
+            shaderMat.uniforms.u_scale.value = vfxState.scale;
+            const c = hexToRgb(vfxState.color);
+            shaderMat.uniforms.u_color.value.set(c.r, c.g, c.b);
+            
+            shaderMat.uniforms.u_bright.value = vfxState.bright;
+            shaderMat.uniforms.u_cont.value = vfxState.cont;
+            shaderMat.uniforms.u_sat.value = vfxState.sat;
+            shaderMat.uniforms.u_hue.value = vfxState.hue * (Math.PI / 180); // To Rads
+            shaderMat.uniforms.u_invert.value = vfxState.invert;
+            shaderMat.uniforms.u_vig.value = vfxState.vig;
+            shaderMat.uniforms.u_grain.value = vfxState.grain;
+            shaderMat.uniforms.u_crt.value = vfxState.crt;
+            shaderMat.uniforms.u_glitch.value = vfxState.glitch;
+            shaderMat.uniforms.u_blur.value = vfxState.blur;
+            shaderMat.uniforms.u_tintPower.value = vfxState.tintPower;
+            const tC = hexToRgb(vfxState.tintColor);
+            shaderMat.uniforms.u_tintColor.value.set(tC.r, tC.g, tC.b);
+        };
+
+        Object.keys(uiMap).forEach(id => document.getElementById(id).addEventListener('input', syncUI));
+
+        const btns = document.querySelectorAll('.effect-btn');
+        btns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                btns.forEach(b => b.classList.remove('active'));
+                e.currentTarget.classList.add('active');
+                vfxState.mode = parseInt(e.currentTarget.dataset.mode);
+                shaderMat.uniforms.u_mode.value = vfxState.mode;
+            });
+        });
+
+        // --- 5. RENDER LOOP & MEDIA PIPELINE ---
         let isPlaying = false;
-        let animationFrameId;
+        let lastDrawTime = 0;
 
-        // MEDIA INGEST
         videoInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -219,91 +497,36 @@
             video.play();
             isPlaying = true;
             renderBtn.disabled = false;
-            renderStatus.textContent = "READY FOR RENDER";
+            renderStatus.textContent = "SYSTEM READY";
 
             video.onloadedmetadata = () => {
-                // Sincronizar dimensiones del canvas principal
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                
-                // Sincronizar dimensiones del buffer
-                bufferCanvas.width = canvas.width;
-                bufferCanvas.height = canvas.height;
-                
-                // Generar recursos offscreen
-                generateNoisePattern(canvas.width + 100, canvas.height + 100); 
-                generateCRT(canvas.width, canvas.height);
-                generateVignette(canvas.width, canvas.height);
-
+                const w = video.videoWidth;
+                const h = video.videoHeight;
+                texCanvas.width = w;
+                texCanvas.height = h;
+                renderer.setSize(w, h);
                 drawFrame();
             };
         });
 
-        // SGX RENDER LOOP
         function drawFrame() {
             if (!isPlaying) return;
-            const w = canvas.width;
-            const h = canvas.height;
+            requestAnimationFrame(drawFrame);
 
-            // FIX: Extraer el frame puro del video al Buffer Canvas primero.
-            // Esto convierte el video (hardware texture) en un bitmap estático
-            bufferCtx.drawImage(video, 0, 0, w, h);
-
-            // 1. HARDWARE ACCELERATED FILTERS (Aplicado sobre el Buffer, no sobre el video directo)
-            // Esto garantiza que el filtro CSS funcione en cualquier navegador móvil o de escritorio
-            ctx.filter = `brightness(${inputs.bright.value}%) contrast(${inputs.cont.value}%) saturate(${inputs.sat.value}%) hue-rotate(${inputs.hue.value}deg) invert(${inputs.invert.value}%) blur(${inputs.blur.value}px)`;
-            ctx.drawImage(bufferCanvas, 0, 0, w, h);
-            ctx.filter = 'none'; // Importante resetear para que no afecte el resto de los FX
-
-            // 2. TINT
-            if (inputs.tint.value > 0) {
-                ctx.fillStyle = `rgba(${hexToRgb(inputs.tintColor.value)}, ${inputs.tint.value / 100})`;
-                ctx.globalCompositeOperation = 'multiply';
-                ctx.fillRect(0, 0, w, h);
-                ctx.globalCompositeOperation = 'source-over';
+            const now = Date.now();
+            if (now - lastDrawTime >= (1000 / vfxState.fps)) {
+                if (video.readyState >= 2) {
+                    texCtx.drawImage(video, 0, 0, texCanvas.width, texCanvas.height);
+                    videoTexture.needsUpdate = true;
+                }
+                lastDrawTime = now;
             }
-
-            // 3. GRAIN
-            if (inputs.grain.value > 0) {
-                ctx.globalAlpha = inputs.grain.value / 200; 
-                ctx.globalCompositeOperation = 'overlay';
-                ctx.drawImage(noiseCanvas, -(Math.random() * 50), -(Math.random() * 50));
-                ctx.globalCompositeOperation = 'source-over';
-                ctx.globalAlpha = 1.0;
-            }
-
-            // 4. GLITCH
-            const glitchVal = parseInt(inputs.glitch.value);
-            if (glitchVal > 0 && Math.random() < (glitchVal / 100) * 0.4) {
-                const sliceH = Math.max(1, Math.random() * (h / 8));
-                const sliceY = Math.random() * (h - sliceH);
-                const shiftX = (Math.random() - 0.5) * glitchVal * (w / 30);
-                
-                ctx.drawImage(canvas, 0, sliceY, w, sliceH, shiftX, sliceY, w, sliceH);
-                ctx.fillStyle = 'rgba(255, 0, 50, 0.3)';
-                ctx.globalCompositeOperation = 'screen';
-                ctx.fillRect(Math.max(0, shiftX), sliceY, w, sliceH);
-                ctx.globalCompositeOperation = 'source-over';
-            }
-
-            // 5. CRT
-            if (inputs.crt.value > 0) {
-                ctx.globalAlpha = inputs.crt.value / 100;
-                ctx.drawImage(crtCanvas, 0, 0);
-                ctx.globalAlpha = 1.0;
-            }
-
-            // 6. VIGNETTE
-            if (inputs.vig.value > 0) {
-                ctx.globalAlpha = inputs.vig.value / 100;
-                ctx.drawImage(vigCanvas, 0, 0);
-                ctx.globalAlpha = 1.0;
-            }
-
-            animationFrameId = requestAnimationFrame(drawFrame);
+            
+            shaderMat.uniforms.u_time.value = clock.getElapsedTime();
+            renderer.render(scene, camera);
         }
 
-        // MEDIA RECORDER PIPELINE
+        // --- RECORDER ---
         let mediaRecorder;
         let recordedChunks = [];
 
@@ -311,15 +534,15 @@
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
                 video.loop = true;
-                renderBtn.textContent = 'Record Output';
+                renderBtn.textContent = 'Start Recording';
                 renderBtn.classList.replace('bg-red-600', 'bg-[#FDCC0D]');
                 renderBtn.classList.replace('text-white', 'text-black');
-                renderStatus.textContent = "PROCESSING...";
+                renderStatus.textContent = "PROCESSING OUTPUT...";
                 return;
             }
 
             recordedChunks = [];
-            const stream = canvas.captureStream(30);
+            const stream = renderer.domElement.captureStream(30);
             let mimeType = 'video/mp4';
             let fileExtension = 'mp4';
 
@@ -353,10 +576,10 @@
             video.play();
             mediaRecorder.start();
             
-            renderBtn.textContent = '■ STOP';
+            renderBtn.textContent = '■ STOP & SAVE';
             renderBtn.classList.replace('bg-[#FDCC0D]', 'bg-red-600');
             renderBtn.classList.replace('text-black', 'text-white');
-            renderStatus.textContent = "RECORDING...";
+            renderStatus.textContent = "RECORDING GLSL MASTER...";
 
             video.onended = () => {
                 if (mediaRecorder && mediaRecorder.state === 'recording') renderBtn.click();
