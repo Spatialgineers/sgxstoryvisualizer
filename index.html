@@ -3,130 +3,146 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Spatialgineers | SGX Story Visualizer</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background-color: #050505; color: #fff; font-family: -apple-system, BlinkMacSystemFont, sans-serif; overflow: hidden; margin: 0; }
-        /* Colores de Marca Spatialgineers: Amarillo Metálico #FDCC0D */
-        input[type=range] { accent-color: #FDCC0D; width: 100%; cursor: pointer; }
-        input[type=color] { border: none; width: 30px; height: 30px; border-radius: 5px; cursor: pointer; padding: 0; background: transparent; }
-        .canvas-container { background-image: radial-gradient(#262626 1px, transparent 1px); background-size: 20px 20px; }
-        .control-group { background: #111; padding: 12px; border-radius: 8px; border: 1px solid #262626; margin-bottom: 12px; }
+        body { background-color: #050505; color: #fff; font-family: -apple-system, BlinkMacSystemFont, sans-serif; overflow: hidden; margin: 0; touch-action: manipulation; }
+        /* SGX Brand Colors */
+        input[type=range] { accent-color: #FDCC0D; width: 100%; height: 4px; cursor: pointer; background: #333; border-radius: 2px; outline: none; -webkit-appearance: none; margin-top: 6px; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 12px; height: 12px; border-radius: 50%; background: #FDCC0D; cursor: pointer; }
+        input[type=color] { border: none; width: 24px; height: 24px; border-radius: 4px; cursor: pointer; padding: 0; background: transparent; }
+        .canvas-container { background-image: radial-gradient(#262626 1px, transparent 1px); background-size: 16px 16px; }
+        .control-group { background: #111; padding: 10px; border-radius: 6px; border: 1px solid #262626; margin-bottom: 8px; }
         
-        /* Barra de desplazamiento personalizada */
-        aside::-webkit-scrollbar { width: 6px; }
-        aside::-webkit-scrollbar-thumb { background-color: #333; border-radius: 10px; }
+        /* Stealth Scrollbar */
+        .scrollable-area::-webkit-scrollbar { width: 4px; }
+        .scrollable-area::-webkit-scrollbar-thumb { background-color: #333; border-radius: 4px; }
     </style>
 </head>
-<body class="flex h-screen w-full">
+<body class="flex flex-col md:flex-row h-screen w-full">
 
-    <aside class="w-80 bg-[#0a0a0a] border-r border-[#262626] flex flex-col overflow-y-auto h-full relative z-10 shadow-2xl">
-        <div class="p-6 sticky top-0 bg-[#0a0a0a] z-20 border-b border-[#262626]">
-            <h1 class="text-xl font-bold tracking-tight text-[#FDCC0D] mb-1 italic">SGX STORY VISUALIZER</h1>
-            <p class="text-[10px] text-gray-500 font-mono uppercase tracking-widest">Spatialgineers • Narrative Engine</p>
+    <!-- RENDER ENGINE / CANVAS AREA (Arriba en móvil, Derecha en Desktop) -->
+    <main class="w-full md:flex-1 h-[45vh] md:h-screen flex flex-col items-center justify-center p-2 md:p-6 canvas-container relative order-1 md:order-2 z-0 border-b md:border-b-0 border-[#262626]">
+        <video id="hidden-video" class="hidden" loop muted playsinline crossorigin="anonymous"></video>
+        <canvas id="render-canvas" class="max-w-full max-h-full object-contain shadow-[0_0_40px_rgba(253,204,13,0.05)] bg-black border border-[#262626] rounded-sm"></canvas>
+    </main>
+
+    <!-- CONTROL CENTER (Abajo en móvil, Izquierda en Desktop) -->
+    <aside class="w-full md:w-[320px] h-[55vh] md:h-screen bg-[#0a0a0a] border-r border-[#262626] flex flex-col order-2 md:order-1 relative z-10 shadow-2xl">
+        
+        <!-- Header -->
+        <div class="px-4 py-3 sticky top-0 bg-[#0a0a0a]/95 backdrop-blur-sm z-20 border-b border-[#262626] flex justify-between items-center">
+            <div>
+                <h1 class="text-sm md:text-base font-bold tracking-tight text-[#FDCC0D] italic">SGX VISUALIZER</h1>
+                <p class="text-[8px] text-gray-500 font-mono uppercase tracking-widest leading-none">Narrative Engine 2.0</p>
+            </div>
+            <label class="bg-[#32527B] hover:bg-[#254063] text-white text-[9px] font-bold py-1.5 px-3 rounded cursor-pointer transition-colors uppercase tracking-wider">
+                Load
+                <input type="file" id="video-upload" accept="video/*" class="hidden">
+            </label>
         </div>
 
-        <div class="p-6 flex flex-col gap-4">
-            <div class="control-group border-[#FDCC0D]/30">
-                <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Medio de Origen</label>
-                <input type="file" id="video-upload" accept="video/*" class="w-full text-xs text-gray-400 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-bold file:bg-[#32527B] file:text-white hover:file:bg-[#254063] cursor-pointer transition-colors">
+        <!-- Scrollable Controls -->
+        <div class="p-4 flex-1 overflow-y-auto scrollable-area flex flex-col gap-2">
+            
+            <!-- Base Color -->
+            <div class="control-group border-[#FDCC0D]/20">
+                <h2 class="text-[9px] font-bold text-[#888888] uppercase tracking-widest border-b border-[#262626] pb-1 mb-2">Color Base (GPU)</h2>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="flex justify-between text-[10px] font-mono text-gray-300"><span>Brt</span> <span id="val-bright">100%</span></label>
+                        <input type="range" id="fx-bright" min="10" max="200" value="100">
+                    </div>
+                    <div>
+                        <label class="flex justify-between text-[10px] font-mono text-gray-300"><span>Con</span> <span id="val-cont">100%</span></label>
+                        <input type="range" id="fx-cont" min="50" max="250" value="100">
+                    </div>
+                    <div>
+                        <label class="flex justify-between text-[10px] font-mono text-gray-300"><span>Sat</span> <span id="val-sat">100%</span></label>
+                        <input type="range" id="fx-sat" min="0" max="300" value="100">
+                    </div>
+                    <div>
+                        <label class="flex justify-between text-[10px] font-mono text-gray-300"><span>Hue</span> <span id="val-hue">0°</span></label>
+                        <input type="range" id="fx-hue" min="-180" max="180" value="0">
+                    </div>
+                </div>
             </div>
 
-            <div class="control-group space-y-4">
-                <h2 class="text-[10px] font-bold text-[#888888] uppercase tracking-widest border-b border-[#262626] pb-1">Corrección de Color Base</h2>
+            <!-- FX -->
+            <div class="control-group border-red-500/10">
+                <h2 class="text-[9px] font-bold text-[#888888] uppercase tracking-widest border-b border-[#262626] pb-1 mb-2">Psychological FX</h2>
                 
-                <div>
-                    <label class="flex justify-between text-xs font-mono text-gray-300 mb-1"><span>Brillo</span> <span id="val-bright">100%</span></label>
-                    <input type="range" id="fx-bright" min="10" max="200" value="100">
-                </div>
-                <div>
-                    <label class="flex justify-between text-xs font-mono text-gray-300 mb-1"><span>Contraste</span> <span id="val-cont">100%</span></label>
-                    <input type="range" id="fx-cont" min="50" max="250" value="100">
-                </div>
-                <div>
-                    <label class="flex justify-between text-xs font-mono text-gray-300 mb-1"><span>Saturación</span> <span id="val-sat">100%</span></label>
-                    <input type="range" id="fx-sat" min="0" max="300" value="100">
-                </div>
-                <div>
-                    <label class="flex justify-between text-xs font-mono text-gray-300 mb-1"><span>Rotación de Tono</span> <span id="val-hue">0°</span></label>
-                    <input type="range" id="fx-hue" min="-180" max="180" value="0">
-                </div>
-            </div>
-
-            <div class="control-group space-y-4">
-                <h2 class="text-[10px] font-bold text-[#888888] uppercase tracking-widest border-b border-[#262626] pb-1">Efectos Psicológicos</h2>
-                
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2 mb-3">
                     <input type="color" id="fx-tint-color" value="#ff0000">
                     <div class="flex-1">
-                        <label class="flex justify-between text-xs font-mono text-gray-300 mb-1"><span>Tinte de Ambiente</span> <span id="val-tint">0%</span></label>
+                        <label class="flex justify-between text-[10px] font-mono text-gray-300"><span>Mood Tint</span> <span id="val-tint">0%</span></label>
                         <input type="range" id="fx-tint-power" min="0" max="100" value="0">
                     </div>
                 </div>
 
-                <div>
-                    <label class="flex justify-between text-xs font-mono text-gray-300 mb-1"><span>Desenfoque (Pánico/Tristeza)</span> <span id="val-blur">0px</span></label>
-                    <input type="range" id="fx-blur" min="0" max="20" value="0" step="0.5">
-                </div>
-                <div>
-                    <label class="flex justify-between text-xs font-mono text-gray-300 mb-1"><span>Viñeta (Aislamiento)</span> <span id="val-vig">0%</span></label>
-                    <input type="range" id="fx-vig" min="0" max="100" value="0">
-                </div>
-                <div>
-                    <label class="flex justify-between text-xs font-mono text-gray-300 mb-1"><span>Grano de Película (Tensión)</span> <span id="val-grain">0%</span></label>
-                    <input type="range" id="fx-grain" min="0" max="100" value="0">
-                </div>
-                <div>
-                    <label class="flex justify-between text-xs font-mono text-gray-300 mb-1"><span>Invertir (Trauma/Shock)</span> <span id="val-invert">0%</span></label>
-                    <input type="range" id="fx-invert" min="0" max="100" value="0">
+                <div class="space-y-2">
+                    <div>
+                        <label class="flex justify-between text-[10px] font-mono text-gray-300"><span>Lens Blur</span> <span id="val-blur">0px</span></label>
+                        <input type="range" id="fx-blur" min="0" max="20" value="0" step="0.5">
+                    </div>
+                    <div>
+                        <label class="flex justify-between text-[10px] font-mono text-gray-300"><span>Vignette</span> <span id="val-vig">0%</span></label>
+                        <input type="range" id="fx-vig" min="0" max="100" value="0">
+                    </div>
+                    <div>
+                        <label class="flex justify-between text-[10px] font-mono text-gray-300"><span>Film Grain</span> <span id="val-grain">0%</span></label>
+                        <input type="range" id="fx-grain" min="0" max="100" value="0">
+                    </div>
+                    <div>
+                        <label class="flex justify-between text-[10px] font-mono text-gray-300"><span>Invert</span> <span id="val-invert">0%</span></label>
+                        <input type="range" id="fx-invert" min="0" max="100" value="0">
+                    </div>
                 </div>
             </div>
 
-            <div class="control-group space-y-4">
-                <h2 class="text-[10px] font-bold text-[#888888] uppercase tracking-widest border-b border-[#262626] pb-1">Degradación de Señal</h2>
-                
-                <div>
-                    <label class="flex justify-between text-xs font-mono text-gray-300 mb-1"><span>Desgarro Glitch</span> <span id="val-glitch">0%</span></label>
-                    <input type="range" id="fx-glitch" min="0" max="100" value="0">
-                </div>
-                <div>
-                    <label class="flex justify-between text-xs font-mono text-gray-300 mb-1"><span>Líneas CRT</span> <span id="val-crt">0%</span></label>
-                    <input type="range" id="fx-crt" min="0" max="100" value="0">
+            <!-- Degradation -->
+            <div class="control-group">
+                <h2 class="text-[9px] font-bold text-[#888888] uppercase tracking-widest border-b border-[#262626] pb-1 mb-2">Degradation</h2>
+                <div class="space-y-2">
+                    <div>
+                        <label class="flex justify-between text-[10px] font-mono text-gray-300"><span>Glitch Tear</span> <span id="val-glitch">0%</span></label>
+                        <input type="range" id="fx-glitch" min="0" max="100" value="0">
+                    </div>
+                    <div>
+                        <label class="flex justify-between text-[10px] font-mono text-gray-300"><span>CRT Scanlines</span> <span id="val-crt">0%</span></label>
+                        <input type="range" id="fx-crt" min="0" max="100" value="0">
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="mt-auto p-6 bg-[#0a0a0a] border-t border-[#262626] sticky bottom-0 z-20">
-            <button id="render-btn" class="w-full bg-[#FDCC0D] text-black font-bold py-3 rounded hover:bg-yellow-400 transition-colors disabled:opacity-50 disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed" disabled>
-                Grabar y Descargar
+        <!-- Render Footer -->
+        <div class="px-4 py-3 bg-[#0a0a0a] border-t border-[#262626] sticky bottom-0 z-20">
+            <button id="render-btn" class="w-full bg-[#FDCC0D] text-black text-xs font-bold py-2.5 rounded hover:bg-yellow-400 transition-colors disabled:opacity-50 disabled:bg-gray-700 disabled:text-gray-400 uppercase tracking-wider" disabled>
+                Record Output
             </button>
-            <p id="render-status" class="text-[10px] text-center text-gray-500 mt-2 font-mono uppercase tracking-widest">Esperando Video...</p>
+            <p id="render-status" class="text-[8px] text-center text-gray-500 mt-1.5 font-mono uppercase tracking-widest">Awaiting Media...</p>
         </div>
     </aside>
-
-    <main class="flex-1 flex flex-col items-center justify-center p-8 canvas-container relative">
-        <!-- El video original se mantiene oculto -->
-        <video id="hidden-video" class="hidden" loop muted playsinline crossorigin="anonymous"></video>
-        <canvas id="render-canvas" class="max-w-full max-h-full shadow-[0_0_50px_rgba(253,204,13,0.1)] border border-[#262626] bg-black object-contain"></canvas>
-    </main>
 
     <script>
         const videoInput = document.getElementById('video-upload');
         const video = document.getElementById('hidden-video');
         const canvas = document.getElementById('render-canvas');
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        // ARQUITECTURA CRÍTICA: Se eliminó willReadFrequently para asegurar Aceleración por GPU de los filtros CSS.
+        const ctx = canvas.getContext('2d'); 
         const renderBtn = document.getElementById('render-btn');
         const renderStatus = document.getElementById('render-status');
 
-        // Enlace de Interfaz (UI Binding) - Se corrigió la clave "tint" para que coincida con "val-tint"
+        // UI Binding Array
         const inputs = {
             bright: document.getElementById('fx-bright'),
             cont: document.getElementById('fx-cont'),
             sat: document.getElementById('fx-sat'),
             hue: document.getElementById('fx-hue'),
             tintColor: document.getElementById('fx-tint-color'),
-            tint: document.getElementById('fx-tint-power'), // Llave ajustada para emparejar con val-tint
+            tint: document.getElementById('fx-tint-power'),
             blur: document.getElementById('fx-blur'),
             vig: document.getElementById('fx-vig'),
             grain: document.getElementById('fx-grain'),
@@ -136,7 +152,7 @@
         };
 
         Object.keys(inputs).forEach(key => {
-            if (inputs[key].type === 'range') {
+            if (inputs[key] && inputs[key].type === 'range') {
                 inputs[key].addEventListener('input', (e) => {
                     let unit = key === 'hue' ? '°' : key === 'blur' ? 'px' : '%';
                     const labelSpan = document.getElementById(`val-${key}`);
@@ -145,42 +161,35 @@
             }
         });
 
-        // Utilidad para color
         function hexToRgb(hex) {
             let r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
             return `${r},${g},${b}`;
         }
 
-        // --- OPTIMIZACIÓN: LIENZOS FUERA DE PANTALLA (Offscreen Canvases) ---
-        // Generar ruido una vez en blanco y negro
+        // OFFSCREEN CANVASES (Caché visual para rendimiento)
         const noiseCanvas = document.createElement('canvas');
-        const noiseCtx = noiseCanvas.getContext('2d');
         function generateNoisePattern(w, h) {
             noiseCanvas.width = w;
             noiseCanvas.height = h;
+            const noiseCtx = noiseCanvas.getContext('2d');
             const imgData = noiseCtx.createImageData(w, h);
             const buffer = new Uint32Array(imgData.data.buffer);
             for (let i = 0; i < buffer.length; i++) {
                 const v = Math.random() * 255;
-                // Ruido Monocromático en lugar de colores arcoíris para un look cinemático
                 buffer[i] = (255 << 24) | (v << 16) | (v << 8) | v;
             }
             noiseCtx.putImageData(imgData, 0, 0);
         }
 
-        // Generar líneas CRT estáticas una vez
         const crtCanvas = document.createElement('canvas');
         function generateCRT(w, h) {
             crtCanvas.width = w;
             crtCanvas.height = h;
             const cCtx = crtCanvas.getContext('2d');
             cCtx.fillStyle = 'rgba(0, 0, 0, 1)'; 
-            for (let i = 0; i < h; i += 4) {
-                cCtx.fillRect(0, i, w, 2);
-            }
+            for (let i = 0; i < h; i += 4) cCtx.fillRect(0, i, w, 2);
         }
 
-        // Generar gradiente de viñeta una vez
         const vigCanvas = document.createElement('canvas');
         function generateVignette(w, h) {
             vigCanvas.width = w;
@@ -196,7 +205,7 @@
         let isPlaying = false;
         let animationFrameId;
 
-        // --- CARGA DE MEDIOS (Media Load) ---
+        // MEDIA INGEST
         videoInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -205,14 +214,12 @@
             video.play();
             isPlaying = true;
             renderBtn.disabled = false;
-            renderStatus.textContent = "Listo para Procesar";
+            renderStatus.textContent = "READY FOR RENDER";
 
             video.onloadedmetadata = () => {
                 canvas.width = video.videoWidth;
                 canvas.height = video.videoHeight;
                 
-                // Configurar recursos offscreen basado en las dimensiones
-                // Generamos ruido más grande que el canvas para permitir desplazamiento aleatorio sin cortes
                 generateNoisePattern(canvas.width + 100, canvas.height + 100); 
                 generateCRT(canvas.width, canvas.height);
                 generateVignette(canvas.width, canvas.height);
@@ -221,18 +228,19 @@
             };
         });
 
-        // --- MOTOR DE RENDERIZADO SGX (Render Engine) ---
+        // SGX RENDER LOOP
         function drawFrame() {
             if (!isPlaying) return;
             const w = canvas.width;
             const h = canvas.height;
 
-            // 1. Filtros CSS nativos aplicados a la imagen de origen
+            // 1. HARDWARE ACCELERATED FILTERS
+            // Al remover willReadFrequently, esto se calcula en GPU (Compatible con Safari/Chrome Mobile)
             ctx.filter = `brightness(${inputs.bright.value}%) contrast(${inputs.cont.value}%) saturate(${inputs.sat.value}%) hue-rotate(${inputs.hue.value}deg) invert(${inputs.invert.value}%) blur(${inputs.blur.value}px)`;
             ctx.drawImage(video, 0, 0, w, h);
-            ctx.filter = 'none'; // Reiniciar filtro
+            ctx.filter = 'none';
 
-            // 2. Tinte de Ambiente (Mood Tint)
+            // 2. TINT
             if (inputs.tint.value > 0) {
                 ctx.fillStyle = `rgba(${hexToRgb(inputs.tintColor.value)}, ${inputs.tint.value / 100})`;
                 ctx.globalCompositeOperation = 'multiply';
@@ -240,42 +248,37 @@
                 ctx.globalCompositeOperation = 'source-over';
             }
 
-            // 3. Grano de Película (Film Grain)
+            // 3. GRAIN
             if (inputs.grain.value > 0) {
                 ctx.globalAlpha = inputs.grain.value / 200; 
                 ctx.globalCompositeOperation = 'overlay';
-                // Desplazamiento aleatorio para animación, el canvas base es suficientemente grande
                 ctx.drawImage(noiseCanvas, -(Math.random() * 50), -(Math.random() * 50));
                 ctx.globalCompositeOperation = 'source-over';
                 ctx.globalAlpha = 1.0;
             }
 
-            // 4. Efecto de Glitch
+            // 4. GLITCH
             const glitchVal = parseInt(inputs.glitch.value);
             if (glitchVal > 0 && Math.random() < (glitchVal / 100) * 0.4) {
-                // Cálculo seguro para prevenir errores de bordes (out-of-bounds)
                 const sliceH = Math.max(1, Math.random() * (h / 8));
                 const sliceY = Math.random() * (h - sliceH);
                 const shiftX = (Math.random() - 0.5) * glitchVal * (w / 30);
                 
-                // Redibujar parte del canvas encima desfasado
                 ctx.drawImage(canvas, 0, sliceY, w, sliceH, shiftX, sliceY, w, sliceH);
-                
-                // Colorización del glitch
                 ctx.fillStyle = 'rgba(255, 0, 50, 0.3)';
                 ctx.globalCompositeOperation = 'screen';
                 ctx.fillRect(Math.max(0, shiftX), sliceY, w, sliceH);
                 ctx.globalCompositeOperation = 'source-over';
             }
 
-            // 5. Líneas CRT (Scanlines)
+            // 5. CRT
             if (inputs.crt.value > 0) {
                 ctx.globalAlpha = inputs.crt.value / 100;
                 ctx.drawImage(crtCanvas, 0, 0);
                 ctx.globalAlpha = 1.0;
             }
 
-            // 6. Viñeta (Vignette)
+            // 6. VIGNETTE
             if (inputs.vig.value > 0) {
                 ctx.globalAlpha = inputs.vig.value / 100;
                 ctx.drawImage(vigCanvas, 0, 0);
@@ -285,36 +288,30 @@
             animationFrameId = requestAnimationFrame(drawFrame);
         }
 
-        // --- MOTOR DE GRABACIÓN (Media Recorder) ---
+        // MEDIA RECORDER PIPELINE
         let mediaRecorder;
         let recordedChunks = [];
 
         renderBtn.addEventListener('click', () => {
-            // Detener grabación manualmente si está grabando
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
                 video.loop = true;
-                renderBtn.textContent = 'Grabar y Descargar';
+                renderBtn.textContent = 'Record Output';
                 renderBtn.classList.replace('bg-red-600', 'bg-[#FDCC0D]');
                 renderBtn.classList.replace('text-white', 'text-black');
-                renderStatus.textContent = "Procesando Archivo...";
+                renderStatus.textContent = "PROCESSING...";
                 return;
             }
 
             recordedChunks = [];
-            // Capturar stream a 30 FPS para estabilizar tamaño y compatibilidad
             const stream = canvas.captureStream(30);
-            
             let mimeType = 'video/mp4';
             let fileExtension = 'mp4';
 
-            // Comprobación de compatibilidad con navegadores
             if (!MediaRecorder.isTypeSupported(mimeType)) {
                 mimeType = 'video/webm; codecs=vp9';
                 fileExtension = 'webm';
-                if (!MediaRecorder.isTypeSupported(mimeType)) {
-                    mimeType = 'video/webm';
-                }
+                if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
             }
 
             mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
@@ -329,25 +326,23 @@
                 const a = document.createElement('a');
                 a.style.display = 'none';
                 a.href = url;
-                a.download = `SGX_StoryVisualizer_${Date.now()}.${fileExtension}`;
+                a.download = `SGX_Story_${Date.now()}.${fileExtension}`;
                 document.body.appendChild(a);
                 a.click();
                 setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 100);
-                renderStatus.textContent = `Descargado .${fileExtension} exitosamente.`;
+                renderStatus.textContent = `SAVED AS .${fileExtension.toUpperCase()}`;
             };
 
-            // Reiniciar video para grabar desde el principio
             video.currentTime = 0;
-            video.loop = false; // Se quita el loop para saber cuando detener la grabación
+            video.loop = false;
             video.play();
-            
             mediaRecorder.start();
-            renderBtn.textContent = '■ Detener Grabación';
+            
+            renderBtn.textContent = '■ STOP';
             renderBtn.classList.replace('bg-[#FDCC0D]', 'bg-red-600');
             renderBtn.classList.replace('text-black', 'text-white');
-            renderStatus.textContent = "Grabando Fotograma por Fotograma...";
+            renderStatus.textContent = "RECORDING...";
 
-            // Detener automáticamente cuando termine el video
             video.onended = () => {
                 if (mediaRecorder && mediaRecorder.state === 'recording') renderBtn.click();
             };
@@ -355,5 +350,6 @@
     </script>
 </body>
 </html>
+
 
 ```
