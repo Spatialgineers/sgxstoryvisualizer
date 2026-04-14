@@ -10,32 +10,34 @@
         body { background-color: #050505; color: #fff; font-family: -apple-system, BlinkMacSystemFont, sans-serif; overflow: hidden; margin: 0; touch-action: manipulation; }
         /* SGX Brand Colors */
         input[type=range] { accent-color: #FDCC0D; width: 100%; height: 4px; cursor: pointer; background: #333; border-radius: 2px; outline: none; -webkit-appearance: none; margin-top: 6px; }
-        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 12px; height: 12px; border-radius: 50%; background: #FDCC0D; cursor: pointer; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #FDCC0D; cursor: pointer; border: 2px solid #000; }
         input[type=color] { border: none; width: 24px; height: 24px; border-radius: 4px; cursor: pointer; padding: 0; background: transparent; }
         .canvas-container { background-image: radial-gradient(#262626 1px, transparent 1px); background-size: 16px 16px; }
-        .control-group { background: #111; padding: 10px; border-radius: 6px; border: 1px solid #262626; margin-bottom: 8px; }
+        .control-group { background: #111; padding: 12px; border-radius: 6px; border: 1px solid #262626; margin-bottom: 8px; }
         
         /* Stealth Scrollbar */
         .scrollable-area::-webkit-scrollbar { width: 4px; }
-        .scrollable-area::-webkit-scrollbar-thumb { background-color: #333; border-radius: 4px; }
+        .scrollable-area::-webkit-scrollbar-thumb { background-color: #444; border-radius: 4px; }
     </style>
 </head>
 <body class="flex flex-col md:flex-row h-screen w-full">
 
     <!-- RENDER ENGINE / CANVAS AREA (Arriba en móvil, Derecha en Desktop) -->
     <main class="w-full md:flex-1 h-[45vh] md:h-screen flex flex-col items-center justify-center p-2 md:p-6 canvas-container relative order-1 md:order-2 z-0 border-b md:border-b-0 border-[#262626]">
-        <video id="hidden-video" class="hidden" loop muted playsinline crossorigin="anonymous"></video>
+        <!-- Se eliminó crossorigin="anonymous" para evitar bloqueos CORS en archivos locales -->
+        <video id="hidden-video" class="hidden" loop muted playsinline></video>
         <canvas id="render-canvas" class="max-w-full max-h-full object-contain shadow-[0_0_40px_rgba(253,204,13,0.05)] bg-black border border-[#262626] rounded-sm"></canvas>
     </main>
 
     <!-- CONTROL CENTER (Abajo en móvil, Izquierda en Desktop) -->
+    <!-- Flex estricto: Todo el sidebar es flex-col, ocupando el alto designado -->
     <aside class="w-full md:w-[320px] h-[55vh] md:h-screen bg-[#0a0a0a] border-r border-[#262626] flex flex-col order-2 md:order-1 relative z-10 shadow-2xl">
         
-        <!-- Header -->
-        <div class="px-4 py-3 sticky top-0 bg-[#0a0a0a]/95 backdrop-blur-sm z-20 border-b border-[#262626] flex justify-between items-center">
+        <!-- Header (shrink-0 asegura que nunca se comprima) -->
+        <div class="px-4 py-3 bg-[#0a0a0a] border-b border-[#262626] flex justify-between items-center shrink-0">
             <div>
                 <h1 class="text-sm md:text-base font-bold tracking-tight text-[#FDCC0D] italic">SGX VISUALIZER</h1>
-                <p class="text-[8px] text-gray-500 font-mono uppercase tracking-widest leading-none">Narrative Engine 2.0</p>
+                <p class="text-[8px] text-gray-500 font-mono uppercase tracking-widest leading-none">Narrative Engine 2.1</p>
             </div>
             <label class="bg-[#32527B] hover:bg-[#254063] text-white text-[9px] font-bold py-1.5 px-3 rounded cursor-pointer transition-colors uppercase tracking-wider">
                 Load
@@ -43,13 +45,13 @@
             </label>
         </div>
 
-        <!-- Scrollable Controls -->
-        <div class="p-4 flex-1 overflow-y-auto scrollable-area flex flex-col gap-2">
+        <!-- Scrollable Controls (flex-1 absorbe el espacio restante, overflow-y-auto maneja el scroll) -->
+        <div class="p-4 flex-1 overflow-y-auto scrollable-area flex flex-col gap-2 pb-6">
             
             <!-- Base Color -->
             <div class="control-group border-[#FDCC0D]/20">
-                <h2 class="text-[9px] font-bold text-[#888888] uppercase tracking-widest border-b border-[#262626] pb-1 mb-2">Color Base (GPU)</h2>
-                <div class="grid grid-cols-2 gap-3">
+                <h2 class="text-[9px] font-bold text-[#888888] uppercase tracking-widest border-b border-[#262626] pb-1 mb-3">Color Base (GPU Buffer)</h2>
+                <div class="grid grid-cols-2 gap-x-4 gap-y-3">
                     <div>
                         <label class="flex justify-between text-[10px] font-mono text-gray-300"><span>Brt</span> <span id="val-bright">100%</span></label>
                         <input type="range" id="fx-bright" min="10" max="200" value="100">
@@ -71,9 +73,9 @@
 
             <!-- FX -->
             <div class="control-group border-red-500/10">
-                <h2 class="text-[9px] font-bold text-[#888888] uppercase tracking-widest border-b border-[#262626] pb-1 mb-2">Psychological FX</h2>
+                <h2 class="text-[9px] font-bold text-[#888888] uppercase tracking-widest border-b border-[#262626] pb-1 mb-3">Psychological FX</h2>
                 
-                <div class="flex items-center gap-2 mb-3">
+                <div class="flex items-center gap-3 mb-4">
                     <input type="color" id="fx-tint-color" value="#ff0000">
                     <div class="flex-1">
                         <label class="flex justify-between text-[10px] font-mono text-gray-300"><span>Mood Tint</span> <span id="val-tint">0%</span></label>
@@ -81,7 +83,7 @@
                     </div>
                 </div>
 
-                <div class="space-y-2">
+                <div class="space-y-3">
                     <div>
                         <label class="flex justify-between text-[10px] font-mono text-gray-300"><span>Lens Blur</span> <span id="val-blur">0px</span></label>
                         <input type="range" id="fx-blur" min="0" max="20" value="0" step="0.5">
@@ -103,8 +105,8 @@
 
             <!-- Degradation -->
             <div class="control-group">
-                <h2 class="text-[9px] font-bold text-[#888888] uppercase tracking-widest border-b border-[#262626] pb-1 mb-2">Degradation</h2>
-                <div class="space-y-2">
+                <h2 class="text-[9px] font-bold text-[#888888] uppercase tracking-widest border-b border-[#262626] pb-1 mb-3">Degradation</h2>
+                <div class="space-y-3">
                     <div>
                         <label class="flex justify-between text-[10px] font-mono text-gray-300"><span>Glitch Tear</span> <span id="val-glitch">0%</span></label>
                         <input type="range" id="fx-glitch" min="0" max="100" value="0">
@@ -117,9 +119,9 @@
             </div>
         </div>
 
-        <!-- Render Footer -->
-        <div class="px-4 py-3 bg-[#0a0a0a] border-t border-[#262626] sticky bottom-0 z-20">
-            <button id="render-btn" class="w-full bg-[#FDCC0D] text-black text-xs font-bold py-2.5 rounded hover:bg-yellow-400 transition-colors disabled:opacity-50 disabled:bg-gray-700 disabled:text-gray-400 uppercase tracking-wider" disabled>
+        <!-- Render Footer (shrink-0 asegura que siempre esté fijo abajo sin pisar el contenido) -->
+        <div class="px-4 py-3 bg-[#0a0a0a] border-t border-[#262626] shrink-0">
+            <button id="render-btn" class="w-full bg-[#FDCC0D] text-black text-xs font-bold py-2.5 rounded hover:bg-yellow-400 transition-colors disabled:opacity-50 disabled:bg-gray-700 disabled:text-gray-400 uppercase tracking-wider shadow-[0_0_15px_rgba(253,204,13,0.2)]" disabled>
                 Record Output
             </button>
             <p id="render-status" class="text-[8px] text-center text-gray-500 mt-1.5 font-mono uppercase tracking-widest">Awaiting Media...</p>
@@ -130,7 +132,6 @@
         const videoInput = document.getElementById('video-upload');
         const video = document.getElementById('hidden-video');
         const canvas = document.getElementById('render-canvas');
-        // ARQUITECTURA CRÍTICA: Se eliminó willReadFrequently para asegurar Aceleración por GPU de los filtros CSS.
         const ctx = canvas.getContext('2d'); 
         const renderBtn = document.getElementById('render-btn');
         const renderStatus = document.getElementById('render-status');
@@ -166,7 +167,12 @@
             return `${r},${g},${b}`;
         }
 
-        // OFFSCREEN CANVASES (Caché visual para rendimiento)
+        // --- ARQUITECTURA DE BUFFERS (FIX PARA FILTROS EN VIDEO) ---
+        // 1. Frame Buffer (El bypass para el bug de hardware)
+        const bufferCanvas = document.createElement('canvas');
+        const bufferCtx = bufferCanvas.getContext('2d');
+
+        // 2. Offscreen FX Canvases
         const noiseCanvas = document.createElement('canvas');
         function generateNoisePattern(w, h) {
             noiseCanvas.width = w;
@@ -217,9 +223,15 @@
             renderStatus.textContent = "READY FOR RENDER";
 
             video.onloadedmetadata = () => {
+                // Sincronizar dimensiones del canvas principal
                 canvas.width = video.videoWidth;
                 canvas.height = video.videoHeight;
                 
+                // Sincronizar dimensiones del buffer
+                bufferCanvas.width = canvas.width;
+                bufferCanvas.height = canvas.height;
+                
+                // Generar recursos offscreen
                 generateNoisePattern(canvas.width + 100, canvas.height + 100); 
                 generateCRT(canvas.width, canvas.height);
                 generateVignette(canvas.width, canvas.height);
@@ -234,11 +246,15 @@
             const w = canvas.width;
             const h = canvas.height;
 
-            // 1. HARDWARE ACCELERATED FILTERS
-            // Al remover willReadFrequently, esto se calcula en GPU (Compatible con Safari/Chrome Mobile)
+            // FIX: Extraer el frame puro del video al Buffer Canvas primero.
+            // Esto convierte el video (hardware texture) en un bitmap estático
+            bufferCtx.drawImage(video, 0, 0, w, h);
+
+            // 1. HARDWARE ACCELERATED FILTERS (Aplicado sobre el Buffer, no sobre el video directo)
+            // Esto garantiza que el filtro CSS funcione en cualquier navegador móvil o de escritorio
             ctx.filter = `brightness(${inputs.bright.value}%) contrast(${inputs.cont.value}%) saturate(${inputs.sat.value}%) hue-rotate(${inputs.hue.value}deg) invert(${inputs.invert.value}%) blur(${inputs.blur.value}px)`;
-            ctx.drawImage(video, 0, 0, w, h);
-            ctx.filter = 'none';
+            ctx.drawImage(bufferCanvas, 0, 0, w, h);
+            ctx.filter = 'none'; // Importante resetear para que no afecte el resto de los FX
 
             // 2. TINT
             if (inputs.tint.value > 0) {
