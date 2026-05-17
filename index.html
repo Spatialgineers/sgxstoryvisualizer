@@ -243,6 +243,10 @@
             <!-- 3. GLITCH & CORRUPTION -->
             <div class="control-group border-[#FF0055]/30">
                 <h2 class="group-title text-[#FF0055]"><span>Signal Corruption</span><span class="text-gray-500">DEGRADATION</span></h2>
+                <div class="col-span-2 mb-3 border-b border-[#FF0055]/30 pb-3">
+                    <label class="lbl mb-1"><span>Corruption Scale (Canvas Sync)</span> <span id="val-corruptscale" class="val">1.00x</span></label>
+                    <input type="range" id="fx-corruptscale" min="0.1" max="15" step="0.1" value="1.0">
+                </div>
                 <div class="grid grid-cols-2 gap-x-4 gap-y-3">
                     <div>
                         <label class="lbl"><span>RGB Shift</span> <span id="val-rgbshift" class="val">0%</span></label>
@@ -320,6 +324,10 @@
             <!-- 5. ATMOSPHERE & TIMING -->
             <div class="control-group mb-2">
                  <h2 class="group-title text-gray-400"><span>Atmosphere & Sync</span></h2>
+                 <div class="col-span-2 mb-3 border-b border-[#32527B]/50 pb-3">
+                    <label class="lbl mb-1"><span>Atmosphere Scale (Canvas Sync)</span> <span id="val-atmoscale" class="val">1.00x</span></label>
+                    <input type="range" id="fx-atmoscale" min="0.1" max="15" step="0.1" value="1.0">
+                </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="lbl mb-1"><span>Lens Blur</span> <span id="val-blur" class="val">0%</span></label>
@@ -427,6 +435,7 @@
             'fx-glitchsize': { key: 'glitchsize', unit: '', mult: 1, type: 'float', def: 1.0 },
             'fx-scanwarp': { key: 'scanwarp', unit: '%', mult: 0.01, type: 'float', def: 0 },
             'fx-pixelate': { key: 'pixelate', unit: '%', mult: 0.01, type: 'float', def: 0 },
+            'fx-corruptscale': { key: 'corruptscale', unit: 'x', mult: 1, type: 'float', def: 1.0 },
             
             // Color Forge
             'fx-exposure': { key: 'exposure', unit: '', mult: 1, type: 'float', def: 1.0 },
@@ -440,11 +449,11 @@
             'fx-tint-power': { key: 'tintPower', unit: '%', mult: 0.01, type: 'float', def: 0 },
             'fx-tint-color': { key: 'tintColor', type: 'color', def: '#ff0055' },
             
-            // Atmosphere
-            'fx-blur': { key: 'blur', unit: '%', mult: 0.01, type: 'float', def: 0 },
+            'fx-vig': { key: 'vig', unit: '%', mult: 0.01, type: 'float', def: 0 },
             'fx-grain': { key: 'grain', unit: '%', mult: 0.01, type: 'float', def: 0 },
             'fx-crt': { key: 'crt', unit: '%', mult: 0.01, type: 'float', def: 0 },
-            'fx-vig': { key: 'vig', unit: '%', mult: 0.01, type: 'float', def: 0 }
+            'fx-blur': { key: 'blur', unit: '%', mult: 0.01, type: 'float', def: 0 },
+            'fx-atmoscale': { key: 'atmoscale', unit: 'x', mult: 1, type: 'float', def: 1.0 }
         };
 
         // Initialize state
@@ -492,12 +501,14 @@
             uniform float u_rgbshift; uniform float u_rgbangle; 
             uniform float u_glitch; uniform float u_glitchsize; 
             uniform float u_scanwarp; uniform float u_pixelate;
+            uniform float u_corruptscale;
             
             // Color & FX
             uniform float u_exposure; uniform float u_gamma; uniform float u_bright; uniform float u_cont; 
             uniform float u_sat; uniform float u_hue; uniform float u_posterize; uniform float u_invert; 
             uniform float u_vig; uniform float u_grain; uniform float u_crt; uniform float u_blur; 
             uniform float u_tintPower; uniform vec3 u_tintColor;
+            uniform float u_atmoscale;
 
             varying vec2 vUv;
 
@@ -550,27 +561,28 @@
 
                 // --- 2. PRE-PROCESSING (Glitch, Warp, Pixelate) ---
                 if(u_scanwarp > 0.0) {
-                    uv.x += sin(uv.y * 10.0 * dynScale + u_time * 5.0) * u_scanwarp * 0.05 * audioBoost;
+                    uv.x += sin(uv.y * (10.0 / u_corruptscale) * dynScale + u_time * 5.0) * u_scanwarp * 0.05 * audioBoost * u_corruptscale;
                 }
                 
                 if(u_glitch > 0.0) {
-                    float glitchSize = max(0.1, u_glitchsize * 0.2);
+                    float glitchSize = max(0.1, u_glitchsize * 0.2 * u_corruptscale);
                     float noiseY = hash(floor(vec2(u_time * 0.1, uv.y / glitchSize)));
                     if(noiseY < u_glitch * 0.15 * audioBoost) {
-                        uv.x += (hash(vec2(u_time)) - 0.5) * u_glitch * 0.3;
+                        uv.x += (hash(vec2(u_time)) - 0.5) * u_glitch * 0.3 * u_corruptscale;
                     }
                 }
 
                 if(u_pixelate > 0.0) {
                     float pxSize = mix(1.0, 150.0, u_pixelate * dynScale);
+                    pxSize = max(1.0, pxSize / u_corruptscale);
                     uv = floor(uv * pxSize) / pxSize;
                 }
 
                 // --- 3. RGB SHIFT / BLUR SAMPLING ---
                 vec4 texColor = vec4(0.0);
                 if(u_rgbshift > 0.0 || u_blur > 0.0) {
-                    float b = u_blur * 0.01;
-                    float s = u_rgbshift * 0.05 * audioBoost;
+                    float b = u_blur * 0.01 * u_atmoscale;
+                    float s = u_rgbshift * 0.05 * audioBoost * u_corruptscale;
                     vec2 shiftDir = vec2(cos(u_rgbangle), sin(u_rgbangle));
                     
                     vec3 col1 = texture2D(tDiffuse, uv + vec2(-b, -b) - shiftDir * s).rgb;
@@ -785,12 +797,12 @@
                 }
                 // Film Grain
                 if(u_grain > 0.0) {
-                    float noise = hash(uv + u_time);
+                    float noise = hash(floor(uv * (2000.0 / u_atmoscale)) + u_time);
                     finalColor -= (noise - 0.5) * u_grain * 0.4;
                 }
                 // CRT Scanlines & Flicker
                 if(u_crt > 0.0) {
-                    float scanline = sin(uv.y * 1000.0) * 0.05 * u_crt;
+                    float scanline = sin(uv.y * (1000.0 / u_atmoscale)) * 0.05 * u_crt;
                     finalColor -= scanline;
                     finalColor *= 1.0 - (u_crt * 0.1 * sin(u_time * 10.0));
                 }
@@ -825,6 +837,7 @@
                 u_glitchsize: { value: vfxState.glitchsize },
                 u_scanwarp: { value: vfxState.scanwarp },
                 u_pixelate: { value: vfxState.pixelate },
+                u_corruptscale: { value: vfxState.corruptscale },
                 
                 u_exposure: { value: vfxState.exposure },
                 u_gamma: { value: vfxState.gamma },
@@ -839,6 +852,7 @@
                 u_grain: { value: vfxState.grain },
                 u_crt: { value: vfxState.crt },
                 u_blur: { value: vfxState.blur },
+                u_atmoscale: { value: vfxState.atmoscale },
                 
                 u_tintPower: { value: vfxState.tintPower },
                 u_tintColor: { value: new THREE.Vector3(initTint.r, initTint.g, initTint.b) }
@@ -894,6 +908,7 @@
             shaderMat.uniforms.u_glitchsize.value = vfxState.glitchsize;
             shaderMat.uniforms.u_scanwarp.value = vfxState.scanwarp;
             shaderMat.uniforms.u_pixelate.value = vfxState.pixelate;
+            shaderMat.uniforms.u_corruptscale.value = vfxState.corruptscale;
 
             shaderMat.uniforms.u_exposure.value = vfxState.exposure;
             shaderMat.uniforms.u_gamma.value = vfxState.gamma;
@@ -908,6 +923,7 @@
             shaderMat.uniforms.u_grain.value = vfxState.grain;
             shaderMat.uniforms.u_crt.value = vfxState.crt;
             shaderMat.uniforms.u_blur.value = vfxState.blur;
+            shaderMat.uniforms.u_atmoscale.value = vfxState.atmoscale;
             
             shaderMat.uniforms.u_tintPower.value = vfxState.tintPower;
             const tC = hexToRgb(vfxState.tintColor);
@@ -934,7 +950,7 @@
             Object.keys(uiMap).forEach(id => {
                 const el = document.getElementById(id);
                 const map = uiMap[id];
-                if (el && map.key !== 'fps' && map.key !== 'zoom' && map.key !== 'rotate' && map.key !== 'panx' && map.key !== 'pany') {
+                if (el && !['fps', 'zoom', 'rotate', 'panx', 'pany', 'corruptscale', 'atmoscale'].includes(map.key)) {
                     if (map.type === 'color') {
                         el.value = randomHex();
                     } else {
